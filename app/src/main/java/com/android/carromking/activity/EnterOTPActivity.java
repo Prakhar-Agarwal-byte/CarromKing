@@ -3,12 +3,17 @@ package com.android.carromking.activity;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
@@ -30,6 +35,10 @@ import com.android.carromking.models.otp.SendOTPResponseModel;
 import com.android.carromking.models.otp.VerifyOTPBodyModel;
 import com.android.carromking.models.otp.VerifyOTPResponseDataModel;
 import com.android.carromking.models.otp.VerifyOTPResponseModel;
+import com.google.android.gms.auth.api.phone.SmsRetriever;
+import com.google.android.gms.common.api.CommonStatusCodes;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.tasks.Task;
 import com.google.gson.Gson;
 
 import retrofit2.Call;
@@ -52,6 +61,10 @@ public class EnterOTPActivity extends AppCompatActivity {
 
     String TAG;
     int time;
+    String mobileNumber;
+    String sessionId;
+    SharedPreferences sp;
+    String numberWithCode;
 
     private EditText[] editTexts;
 
@@ -59,6 +72,8 @@ public class EnterOTPActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_enter_otpactivity);
+        IntentFilter intentFilter = new IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION);
+        registerReceiver(smsVerificationReceiver, intentFilter, SmsRetriever.SEND_PERMISSION, null);
         getSupportActionBar().hide();
         progressBar = new CustomProgressBar(this);
 
@@ -84,14 +99,14 @@ public class EnterOTPActivity extends AppCompatActivity {
         btnVerify.setClickable(false);
         setTimer();
 
-        SharedPreferences sp = getSharedPreferences(TAG, MODE_PRIVATE);
-        String numberWithCode = sp.getString("mobileNumber", "+91 9999999999");
+        sp = getSharedPreferences(TAG, MODE_PRIVATE);
+        numberWithCode = sp.getString("mobileNumber", "+91 9999999999");
 
         tvMobileNumber.setText(numberWithCode);
 
         Bundle bundle = getIntent().getExtras();
-        String mobileNumber = bundle.getString("mobileNumber");
-        String sessionId = bundle.getString("sessionId");
+        mobileNumber = bundle.getString("mobileNumber");
+        sessionId = bundle.getString("sessionId");
 
         etOtp1.addTextChangedListener(new PinTextWatcher(0));
         etOtp2.addTextChangedListener(new PinTextWatcher(1));
@@ -115,6 +130,7 @@ public class EnterOTPActivity extends AppCompatActivity {
                         public void onResponse(@NonNull Call<SendOTPResponseModel> call, @NonNull Response<SendOTPResponseModel> response) {
                             if (response.body() != null && response.isSuccessful() && response.body().isStatus()) {
                                 SendOTPResponseDataModel data = response.body().getData();
+                                Task<Void> task = SmsRetriever.getClient(EnterOTPActivity.this).startSmsUserConsent(null);
                                 otp_not_received.setVisibility(View.GONE);
                                 resend_otp.setVisibility(View.GONE);
                                 change_mobile_num.setVisibility(View.GONE);
@@ -141,49 +157,53 @@ public class EnterOTPActivity extends AppCompatActivity {
         });
 
         btnVerify.setOnClickListener(view -> {
-            String otpText =
-                    etOtp1.getText().toString()
-                            + etOtp2.getText().toString()
-                            + etOtp3.getText().toString()
-                            + etOtp4.getText().toString()
-                            + etOtp5.getText().toString()
-                    + etOtp6.getText().toString();
+            verifyOTP();
+        });
 
-            if (otpText.length() == 6) {
-                progressBar.show();
+
+    }
+
+    void verifyOTP() {
+        String otpText =
+                etOtp1.getText().toString()
+                        + etOtp2.getText().toString()
+                        + etOtp3.getText().toString()
+                        + etOtp4.getText().toString()
+                        + etOtp5.getText().toString()
+                        + etOtp6.getText().toString();
+
+        if (otpText.length() == 6) {
+            progressBar.show();
 //                if(!apiService.internetIsConnected()) {
 //                    progressBar.hide();
 //                    Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
 //                }
-                    apiEndpointInterface.verifyOTP(new VerifyOTPBodyModel(mobileNumber, sessionId, otpText))
-                            .enqueue(new Callback<VerifyOTPResponseModel>() {
-                                @Override
-                                public void onResponse(@NonNull Call<VerifyOTPResponseModel> call, @NonNull Response<VerifyOTPResponseModel> response) {
-                                    if (response.body() != null) {
-                                        if (!response.body().isStatus()) {
-                                            progressBar.dismiss();
-                                            Toast.makeText(EnterOTPActivity.this, response.body().getError().getMessage(), Toast.LENGTH_SHORT).show();
-                                        } else {
-                                            sp.edit().putString("token", response.body().getData().getUserData().getToken()).apply();
-                                            sp.edit().putString("sessionId", sessionId).apply();
-                                            storeDataInLocal(response.body().getData(), sp, numberWithCode);
-                                            progressBar.dismiss();
-                                            Intent i = new Intent(EnterOTPActivity.this, MainActivity.class);
-                                            startActivity(i);
-                                            finish();
-                                        }
-                                    }
-                                }
-
-                                @Override
-                                public void onFailure(@NonNull Call<VerifyOTPResponseModel> call, @NonNull Throwable t) {
+            apiEndpointInterface.verifyOTP(new VerifyOTPBodyModel(mobileNumber, sessionId, otpText))
+                    .enqueue(new Callback<VerifyOTPResponseModel>() {
+                        @Override
+                        public void onResponse(@NonNull Call<VerifyOTPResponseModel> call, @NonNull Response<VerifyOTPResponseModel> response) {
+                            if (response.body() != null) {
+                                if (!response.body().isStatus()) {
                                     progressBar.dismiss();
+                                    Toast.makeText(EnterOTPActivity.this, response.body().getError().getMessage(), Toast.LENGTH_SHORT).show();
+                                } else {
+                                    sp.edit().putString("token", response.body().getData().getUserData().getToken()).apply();
+                                    sp.edit().putString("sessionId", sessionId).apply();
+                                    storeDataInLocal(response.body().getData(), sp, numberWithCode);
+                                    progressBar.dismiss();
+                                    Intent i = new Intent(EnterOTPActivity.this, MainActivity.class);
+                                    startActivity(i);
+                                    finish();
                                 }
-                            });
-            }
-        });
+                            }
+                        }
 
-
+                        @Override
+                        public void onFailure(@NonNull Call<VerifyOTPResponseModel> call, @NonNull Throwable t) {
+                            progressBar.dismiss();
+                        }
+                    });
+        }
     }
 
     void storeDataInLocal(VerifyOTPResponseDataModel dataModel, SharedPreferences sp, String mobileNumber) {
@@ -335,4 +355,57 @@ public class EnterOTPActivity extends AppCompatActivity {
     private String checkDigit(int number) {
         return number <= 9 ? "0" + number : String.valueOf(number);
     }
+
+    private static final int SMS_CONSENT_REQUEST = 2;  // Set to an unused request code
+    private final BroadcastReceiver smsVerificationReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (SmsRetriever.SMS_RETRIEVED_ACTION.equals(intent.getAction())) {
+                Bundle extras = intent.getExtras();
+                Status smsRetrieverStatus = (Status) extras.get(SmsRetriever.EXTRA_STATUS);
+
+                switch (smsRetrieverStatus.getStatusCode()) {
+                    case CommonStatusCodes.SUCCESS:
+                        // Get consent intent
+                        Intent consentIntent = extras.getParcelable(SmsRetriever.EXTRA_CONSENT_INTENT);
+                        try {
+                            // Start activity to show consent dialog to user, activity must be started in
+                            // 5 minutes, otherwise you'll receive another TIMEOUT intent
+                            startActivityForResult(consentIntent, SMS_CONSENT_REQUEST);
+                        } catch (ActivityNotFoundException e) {
+                            // Handle the exception ...
+                        }
+                        break;
+                    case CommonStatusCodes.TIMEOUT:
+                        // Time out occurred, handle the error.
+                        break;
+                }
+            }
+        }
+    };
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            // ...
+            case SMS_CONSENT_REQUEST:
+                if (resultCode == RESULT_OK) {
+                    // Get SMS message content
+                    String message = data.getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE);
+                    String otp = message.replaceAll("[^0-9]+", " ").trim();
+                    etOtp1.setText(String.valueOf(otp.charAt(0)));
+                    etOtp2.setText(String.valueOf(otp.charAt(1)));
+                    etOtp3.setText(String.valueOf(otp.charAt(2)));
+                    etOtp4.setText(String.valueOf(otp.charAt(3)));
+                    etOtp5.setText(String.valueOf(otp.charAt(4)));
+                    etOtp6.setText(String.valueOf(otp.charAt(5)));
+                    verifyOTP();
+                } else {
+                    // Consent canceled, handle the error ...
+                }
+                break;
+        }
+    }
 }
+

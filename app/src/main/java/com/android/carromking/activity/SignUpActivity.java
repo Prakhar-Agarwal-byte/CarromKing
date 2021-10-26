@@ -19,6 +19,8 @@ import com.android.carromking.MyApiEndpointInterface;
 import com.android.carromking.R;
 import com.android.carromking.models.otp.SendOTPResponseDataModel;
 import com.android.carromking.models.otp.SendOTPResponseModel;
+import com.google.android.gms.auth.api.phone.SmsRetriever;
+import com.google.android.gms.tasks.Task;
 import com.hbb20.CountryCodePicker;
 
 import retrofit2.Call;
@@ -103,6 +105,7 @@ public class SignUpActivity extends AppCompatActivity{
                                 @Override
                                 public void onResponse(@NonNull Call<SendOTPResponseModel> call, @NonNull Response<SendOTPResponseModel> response) {
                                     if(response.body()!=null && response.isSuccessful() && response.body().isStatus()) {
+                                        Task<Void> task = SmsRetriever.getClient(SignUpActivity.this).startSmsUserConsent(null);
                                         SendOTPResponseDataModel data = response.body().getData();
                                         sp.edit().putString("mobileNumber", ccpText+ " " +data.getMobileNumber()).apply();
                                         Intent i = new Intent(SignUpActivity.this, EnterOTPActivity.class);

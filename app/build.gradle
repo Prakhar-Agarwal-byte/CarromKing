@@ -55,4 +55,8 @@ dependencies {
     //Paytm SDK
     implementation 'com.paytm.appinvokesdk:appinvokesdk:1.6.3'
 
+    //OTP Autofill
+    implementation 'com.google.android.gms:play-services-auth:17.0.0'
+    implementation 'com.google.android.gms:play-services-auth-api-phone:17.4.0'
+
 }
