@@ -4,6 +4,8 @@ import com.android.carromking.models.home.HomeResponseModel;
 import com.android.carromking.models.otp.SendOTPResponseModel;
 import com.android.carromking.models.otp.VerifyOTPBodyModel;
 import com.android.carromking.models.otp.VerifyOTPResponseModel;
+import com.android.carromking.models.paytm.PaytmRequestInitModel;
+import com.android.carromking.models.paytm.PaytmResponseModel;
 import com.android.carromking.models.profile.ProfileResponseModel;
 import com.android.carromking.models.wallet.TransactionResponseModel;
 import com.android.carromking.models.wallet.WalletResponseModel;
@@ -34,5 +36,8 @@ public interface MyApiEndpointInterface {
 
     @GET("user/transaction")
     Call<TransactionResponseModel> getTransactionData();
+
+    @POST("user/transaction/deposit/init")
+    Call<PaytmResponseModel> initPaytmTxn(@Body PaytmRequestInitModel amount);
 
 }
