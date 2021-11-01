@@ -7,6 +7,6 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/splash_screen"
-    tools:context=".activity.SplashActivity">
+    tools:context="com.entwik.carromcash.activity.SplashActivity">
 
 </androidx.constraintlayout.widget.ConstraintLayout>

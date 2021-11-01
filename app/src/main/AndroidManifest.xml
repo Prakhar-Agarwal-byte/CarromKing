@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.android.carromking">
+    package="com.entwik.carromcash">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -13,10 +13,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CarromKing">
         <activity
-            android:name=".activity.EnterOTPActivity"
+            android:name="com.entwik.carromcash.activity.EnterOTPActivity"
             android:exported="true" />
         <activity
-            android:name=".activity.SplashActivity"
+            android:name="com.entwik.carromcash.activity.SplashActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -26,10 +26,10 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".activity.SignUpActivity"
+            android:name="com.entwik.carromcash.activity.SignUpActivity"
             android:exported="true" />
         <activity
-            android:name=".activity.MainActivity"
+            android:name="com.entwik.carromcash.activity.MainActivity"
             android:exported="true"></activity>
     </application>
 
